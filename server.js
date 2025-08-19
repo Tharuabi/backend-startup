@@ -33,12 +33,12 @@ const stripe = Stripe(STRIPE_SECRET_KEY);
 const JWT_SECRET_KEY = "yourSuperSecretAndUniqueKey!ChangeThisValueLater";
 
 
-const app = express();
+const mongoose = require('mongoose');
 
-mongoose.connect('mongodb://localhost:27017/microstartup', {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-});
+mongoose.connect(process.env.MONGO_URI)
+  .then(() => console.log("MongoDB connected"))
+  .catch(err => console.log("MongoDB connection error:", err));
+
 
 // User schema and model
 const userSchema = new mongoose.Schema({
