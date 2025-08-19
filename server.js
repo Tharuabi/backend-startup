@@ -33,11 +33,12 @@ const stripe = Stripe(STRIPE_SECRET_KEY);
 const JWT_SECRET_KEY = "yourSuperSecretAndUniqueKey!ChangeThisValueLater";
 
 
-const mongoose = require('mongoose');
-
 mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log("MongoDB connected"))
   .catch(err => console.log("MongoDB connection error:", err));
+
+
+
 
 
 // User schema and model
