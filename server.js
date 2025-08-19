@@ -32,7 +32,7 @@ const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET;
 const stripe = Stripe(STRIPE_SECRET_KEY);
 const JWT_SECRET_KEY = "yourSuperSecretAndUniqueKey!ChangeThisValueLater";
 
-
+const app = express(); 
 mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log("MongoDB connected"))
   .catch(err => console.log("MongoDB connection error:", err));
