@@ -63,9 +63,15 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 
-app.use(cors());
+
+app.use(cors({
+  origin: 'https://frontend-startup.vercel.app', // Your frontend domain
+  credentials: true // Allow cookies or auth headers
+}));
+
 app.use(express.json());
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
 // ===== FUNDING SCHEMES API =====
 // List schemes with filters: ?type=Grant&search=seed&sort=deadline
 app.get('/api/schemes', async (req, res) => {
