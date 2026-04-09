@@ -5,7 +5,7 @@ const Stripe = require('stripe');
 const bodyParser = require('body-parser');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const multer = require('multer');
+const multer = require('multer');7
 const path = require('path');
 const Project = require('./models/Project');
 const Idea = require('./models/Idea');
@@ -64,13 +64,11 @@ const storage = multer.diskStorage({
 const upload = multer({ storage });
 
 
-// app.use(cors({
-//   origin: 'https://frontend-startup.vercel.app', // Your frontend domain
-//   credentials: true // Allow cookies or auth headers
-// }));
+
 const allowedOrigins = [
-  'https://frontend-startup.vercel.app', // deployed frontend
-  'http://localhost:5173'                 // local dev frontend
+  'https://frontend-startup-jfbo.vercel.app',
+  'https://frontend-startup-jfbo-git-main-tharanis2023it-2939s-projects.vercel.app',
+  'http://localhost:5173'
 ];
 
 app.use(cors({
@@ -235,9 +233,11 @@ app.post('/api/register', async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, 10);
     const user = new User({ name, email, password: hashedPassword, userType }); // <-- store userType
     await user.save();
+    console.log('✅ User registered successfully:', email);
     res.status(201).json({ message: 'Registered successfully' });
   } catch (err) {
-    res.status(500).json({ message: 'Error registering user.' });
+    console.error('❌ Registration error:', err.message);
+    res.status(500).json({ message: 'Error registering user: ' + err.message });
   }
 });
 
