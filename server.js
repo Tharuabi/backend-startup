@@ -5,7 +5,7 @@ const Stripe = require('stripe');
 const bodyParser = require('body-parser');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const multer = require('multer');7
+const multer = require('multer');
 const path = require('path');
 const Project = require('./models/Project');
 const Idea = require('./models/Idea');
@@ -33,6 +33,8 @@ const stripe = Stripe(STRIPE_SECRET_KEY);
 const JWT_SECRET_KEY = "tharanis2023it";
 
 const app = express(); 
+
+
 mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log("MongoDB connected"))
   .catch(err => console.log("MongoDB connection error:", err));
@@ -66,8 +68,8 @@ const upload = multer({ storage });
 
 
 const allowedOrigins = [
-  'https://frontend-startup-jfbo.vercel.app',
-  'https://frontend-startup-jfbo-git-main-tharanis2023it-2939s-projects.vercel.app',
+  // 'https://frontend-startup-jfbo.vercel.app',
+  // 'https://frontend-startup-jfbo-git-main-tharanis2023it-2939s-projects.vercel.app',
   'http://localhost:5173'
 ];
 
@@ -389,6 +391,19 @@ app.get('/api/ideas/trending', async (req, res) => {
   }
 });
 
+// Get single idea by ID
+app.get('/api/ideas/:id', async (req, res) => {
+  try {
+    const idea = await Idea.findById(req.params.id);
+    if (!idea) {
+      return res.status(404).json({ message: 'Idea not found.' });
+    }
+    res.json(idea);
+  } catch (err) {
+    res.status(500).json({ message: 'Error fetching idea.' });
+  }
+});
+
 // Update idea views (for tracking popularity)
 app.put('/api/ideas/:id/view', async (req, res) => {
   try {
@@ -665,32 +680,7 @@ app.put('/api/cart/:userId/:projectId', async (req, res) => {
   }
 });
 
-// Handle checkout success
-app.get('/api/checkout-success', async (req, res) => {
-  const { session_id } = req.query;
-  
-  try {
-    const session = await stripe.checkout.sessions.retrieve(session_id);
-    
-    if (session.payment_status === 'paid') {
-      res.json({
-        success: true,
-        amount: session.amount_total,
-        customer_email: session.customer_details?.email,
-        payment_status: session.payment_status
-      });
-    } else {
-      res.json({
-        success: false,
-        message: 'Payment not completed'
-      });
-    }
-  } catch (err) {
-    console.error('Error retrieving session:', err);
-    res.status(500).json({ success: false, error: err.message });
-  }
-});
-
+// Handle checkout success (placeholder - using enhanced version below)
 // Manual payment storage endpoint (for immediate testing)
 app.post('/api/store-payment-manual', async (req, res) => {
   try {
@@ -857,7 +847,8 @@ app.post('/api/stripe-webhook-test', async (req, res) => {
 
 // Store payment details after successful payment
 app.get('/api/checkout-success', async (req, res) => {
-  const { session_id, projectId, userId } = req.query;
+  const { session_id } = req.query;
+  console.log('Verifying checkout session:', session_id);
   
   if (!session_id) {
     return res.status(400).json({ success: false, message: 'Session ID is required.' });
@@ -865,28 +856,57 @@ app.get('/api/checkout-success', async (req, res) => {
   
   try {
     const session = await stripe.checkout.sessions.retrieve(session_id);
+    console.log('Stripe session status:', session.payment_status);
+    
     if (session.payment_status === 'paid') {
       // Prevent duplicate order insertion
       const existingOrder = await Order.findOne({ stripeCheckoutSessionId: session_id });
       if (!existingOrder) {
+        console.log('Creating new order for session:', session_id);
+        // Extract metadata
+        const metadata = session.metadata || {};
+        const customerDetails = metadata.customerDetails ? JSON.parse(metadata.customerDetails) : {};
+        const items = metadata.items ? JSON.parse(metadata.items) : [];
+        
         await Order.create({
-          paymentIntentId: session.payment_intent,
-          amount: session.amount_total,
+          stripeCheckoutSessionId: session.id,
+          stripePaymentIntentId: session.payment_intent,
+          customerEmail: session.customer_details?.email || customerDetails.email || 'unknown@example.com',
+          customerName: session.customer_details?.name || customerDetails.name || 'Unknown Customer',
+          customerPhone: session.customer_details?.phone || customerDetails.phone || '',
+          items: items.length > 0 ? items : [{
+            title: metadata.projectTitle || 'Project Purchase',
+            price: session.amount_total / 100,
+            quantity: 1
+          }],
+          totalAmount: session.amount_total / 100,
           currency: session.currency,
-          status: session.payment_status,
-          created: new Date(),
-          projectId: projectId || null,
-          userId: userId || null,
-          stripeCheckoutSessionId: session_id,
+          paymentStatus: 'paid',
+          paymentMethod: 'stripe',
+          fromCart: metadata.fromCart === 'true',
+          projectTitle: metadata.projectTitle || 'MicroStartupX Purchase',
+          createdAt: new Date(),
+          updatedAt: new Date()
         });
+        console.log('Order created successfully');
+      } else {
+        console.log('Order already exists for session:', session_id);
       }
-      res.json({ success: true, message: 'Payment successful and stored.', amount: session.amount_total });
+      
+      res.json({ 
+        success: true, 
+        message: 'Payment successful and stored.', 
+        amount: session.amount_total / 100,
+        customerName: session.customer_details?.name,
+        customerEmail: session.customer_details?.email
+      });
     } else {
+      console.log('Payment not completed for session:', session_id);
       res.status(400).json({ success: false, message: 'Payment not completed.' });
     }
   } catch (err) {
     console.error('Error in /api/checkout-success:', err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ success: false, error: err.message, message: 'Internal server error during verification' });
   }
 });
 
